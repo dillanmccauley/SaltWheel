@@ -14,7 +14,7 @@ os.makedirs(OUT, exist_ok=True)
 BODY_R = 40.0            # body radius
 BODY_H = 14.0            # body height (top face z=0, bottom z=-14)
 TOP_PLATE = 3.0
-HUB_R = 11.0
+HUB_R = 12.0             # hub radius; its bottom face is the center-gasket sealing land
 BORE_R = 33.2            # cavity bore, full depth
 SHOULDER_Z = -8.3        # body shoulder: gasket seat; male thread below it
 PITCH, LEAD, DEPTH = 3.0, 6.0, 1.4   # 2-start: lead = 2 x pitch
@@ -30,6 +30,18 @@ GASKET = 0.75            # compressed gasket thickness, between shoulder and lid
 LID_RIM_Z = SHOULDER_Z - GASKET   # top of the lid skirt (-9.05)
 LID_FLOOR_TOP = -14.6    # 0.4 below the divider tips
 LID_FLOOR_T = 3.0
+
+# drainage (top face, under the reel). The top face stays flat so the body still prints face down;
+# a gutter ring around the washer seat feeds radial grooves whose floors slope down to the rim.
+GUTTER_R0, GUTTER_R1, GUTTER_DEPTH = 9.8, 11.4, 0.8
+DRAIN_GROOVES, DRAIN_W, DRAIN_DEPTH_RIM, DRAIN_ANGLE0 = 6, 3.0, 1.3, 30.0
+
+# pin drain (pin hole -> nut pocket -> out through the lid, sealed off from the compartment)
+CG_ID, CG_OD = 16.6, 22.6         # center gasket, cut from the same 1 mm silicone sheet
+CG_RECESS_R = CG_OD / 2 + 0.3     # locating recess in the lid floor
+CG_RECESS_FLOOR = LID_FLOOR_TOP - 0.5
+HUB_BOTTOM = CG_RECESS_FLOOR + GASKET   # hub land compresses the center gasket to the same 0.75 as the rim gasket
+LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the center gasket
 
 # reel interface (from the reel; change these after measuring a real Yoyito)
 REEL_HEX_AF = 12.7
@@ -103,16 +115,27 @@ def body_shell():
     return upper
 
 def body_extras():
-    e = cyl(HUB_R, -BODY_H, BODY_H - TOP_PLATE + 0.2)
+    e = cyl(HUB_R, HUB_BOTTOM, -HUB_BOTTOM - TOP_PLATE + 0.2)
     for a in DIV_ANGLES:
         d = cq.Workplane("XY").box(BORE_R + 0.6 - (HUB_R - 0.5), DIV_T, -TOP_PLATE - DIV_BOTTOM + 0.1, centered=(False, True, False)) \
             .translate((HUB_R - 0.5, 0, DIV_BOTTOM)).rotate((0, 0, 0), (0, 0, 1), a)
         e = e.union(d)
     return e.union(lug_solid())
 
+def drain_cuts():
+    """Gutter ring around the washer seat plus radial grooves out to the rim, in the top face."""
+    c = revolve([(GUTTER_R0, 0.01), (GUTTER_R1, 0.01), (GUTTER_R1, -GUTTER_DEPTH), (GUTTER_R0, -GUTTER_DEPTH)])
+    for k in range(DRAIN_GROOVES):
+        g = (cq.Workplane("XZ").polyline([(GUTTER_R0 + 0.5, 0.01), (BODY_R + 1, 0.01), (BODY_R + 1, -DRAIN_DEPTH_RIM),
+                                           (GUTTER_R0 + 0.5, -GUTTER_DEPTH)]).close()
+             .extrude(DRAIN_W / 2, both=True).rotate((0, 0, 0), (0, 0, 1), DRAIN_ANGLE0 + 360.0 * k / DRAIN_GROOVES))
+        c = c.union(g)
+    return c
+
 def body_cuts():
-    return (hex_prism(NUT_AF, -BODY_H - 1, NUT_DEPTH + 1).union(cyl(PIN_HOLE_R, -BODY_H - 1, BODY_H + 2))
-            .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)))
+    nut_top = -BODY_H + NUT_DEPTH
+    return (hex_prism(NUT_AF, HUB_BOTTOM - 1, nut_top - HUB_BOTTOM + 1).union(cyl(PIN_HOLE_R, HUB_BOTTOM - 1, -HUB_BOTTOM + 2))
+            .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)).union(drain_cuts()))
 
 def cavity():
     return revolve([(HUB_R - 0.5, -TOP_PLATE), (BORE_R, -TOP_PLATE), (BORE_R, -BODY_H - 1), (HUB_R - 0.5, -BODY_H - 1)])
@@ -137,9 +160,14 @@ def scallops():
         c = s if c is None else c.union(s)
     return c
 
+def lid_center_cuts():
+    """Center-gasket recess under the hub and the pin drain hole through the floor."""
+    zb = LID_FLOOR_TOP - LID_FLOOR_T
+    return cyl(CG_RECESS_R, CG_RECESS_FLOOR, 1.0).union(cyl(LID_DRAIN_R, zb - 1, LID_FLOOR_T + 2))
+
 def lid():
     l = lid_blank().cut(twisted(FEMALE_CREST, LID_FLOOR_TOP, LID_RIM_Z - LID_FLOOR_TOP + 0.1))
-    return l.cut(female_chamfer(LID_RIM_Z)).cut(scallops())
+    return l.cut(female_chamfer(LID_RIM_Z)).cut(scallops()).cut(lid_center_cuts())
 
 # ---------------- 03 hex plug (local: tab ends z=0, which sit on the washer) ----------------
 # The reel is captured between barbs behind its back face and a flange on its front face.
@@ -191,26 +219,47 @@ def plug():
     return p
 
 # ---------------- 05 test reel (local: back face z=0) ----------------
-REEL_A = (44.45, 3.0); REEL_V = (28.5, 6.1); REEL_L = (42.0, 25.4)
+# Yoyito-style spool: line groove at the back, cone that the line slides off, and a dished
+# (concave) front face with finger holes around a central hex hub, so fingertips reach through.
+REEL_A = (44.45, 3.0); REEL_V = (30.0, 6.1); REEL_L = (42.0, 25.4)
+REEL_FRONT = REEL_L[1]
+DISH_R, DISH_DEPTH = 38.0, 17.0       # spherical dish: rim radius at the front face, depth at the center
+HUB_BOSS_R = 9.8                      # hex hub left standing in the dish; the plug flange (r 9) bears on it
+FINGER_HOLES, FINGER_D, FINGER_PCR = 6, 17.0, 19.5
+FINGER_ANGLE0 = 30.0                  # one hole lines up with the line-tie hole
+
 def reel_profile():
     pts = [(0, 0)]
     pts += fillet_pts((0, 0), (44.45, 0), (44.45, 3.0), 1.0)
     pts += fillet_pts((44.45, 0), REEL_A, REEL_V, 0.6, 3)
     pts += fillet_pts(REEL_A, REEL_V, REEL_L, 1.5)
-    pts += fillet_pts(REEL_V, REEL_L, (0, 25.4), 1.5)
-    pts += [(0, 25.4)]
+    pts += fillet_pts(REEL_V, REEL_L, (0, REEL_FRONT), 1.5)
+    pts += [(0, REEL_FRONT)]
     return pts
+
+def dish_z(r):
+    rs = (DISH_R ** 2 + DISH_DEPTH ** 2) / (2 * DISH_DEPTH)
+    return REEL_FRONT - DISH_DEPTH + rs - math.sqrt(rs * rs - r * r)
+
+def dish_cut():
+    """Revolved dish outside the hub boss, edges rounded where it meets the front face and the boss."""
+    pts = [(HUB_BOSS_R, REEL_FRONT + 1)]
+    pts += [(HUB_BOSS_R + (DISH_R - HUB_BOSS_R) * k / 40, dish_z(HUB_BOSS_R + (DISH_R - HUB_BOSS_R) * k / 40)) for k in range(41)]
+    pts += [(DISH_R, REEL_FRONT + 1)]
+    return revolve(pts)
 
 def reel():
     r = revolve(reel_profile())
-    r = r.cut(hex_prism(REEL_HEX_AF, -1, 28))
+    r = r.cut(dish_cut())
+    r = r.cut(hex_prism(REEL_HEX_AF, -1, REEL_FRONT + 3))
     h2 = REEL_HEX_AF / 2
-    r = r.cut(revolve([(0, 25.41), (h2 + 0.6, 25.41), (h2 - 0.01, 24.8), (0, 24.8)]))
-    for a in (30, 150, 270):
-        r = r.cut(cyl(8.5, -1, 28, x=17.5 * math.cos(math.radians(a)), y=17.5 * math.sin(math.radians(a))))
-    tie = cq.Workplane("YZ", origin=(20.0, 0, 6.6)).circle(1.25).extrude(13.0).rotate((0, 0, 0), (0, 0, 1), 30)
-    r = r.cut(tie)
-    return r
+    r = r.cut(revolve([(0, REEL_FRONT + 0.01), (h2 + 0.6, REEL_FRONT + 0.01), (h2 - 0.01, REEL_FRONT - 0.6), (0, REEL_FRONT - 0.6)]))
+    for k in range(FINGER_HOLES):
+        a = math.radians(FINGER_ANGLE0 + 360.0 * k / FINGER_HOLES)
+        r = r.cut(cyl(FINGER_D / 2, -1, REEL_FRONT + 3, x=FINGER_PCR * math.cos(a), y=FINGER_PCR * math.sin(a)))
+    tie = (cq.Workplane("YZ", origin=(FINGER_PCR, 0, REEL_V[1] + 0.5)).circle(1.25).extrude(34.0 - FINGER_PCR)
+           .rotate((0, 0, 0), (0, 0, 1), FINGER_ANGLE0))
+    return r.cut(tie)
 
 # ---------------- coupons and template ----------------
 def coupon_hub():
@@ -231,8 +280,10 @@ def coupon_thread_lid():
     return c.cut(female_chamfer(LID_RIM_Z)).cut(cyl(BORE_R, LID_FLOOR_TOP - 2, 10))
 
 def gasket_template():
+    """Rim gasket ring (outer) and center gasket ring (inner, concentric); cut along both edges of each."""
     g = cyl(39.5, 0, 1.6).cut(cyl(37.1, -1, 4))
-    return g.union(cq.Workplane("XY").box(6, 8, 1.6, centered=(True, False, False)).translate((0, 38.8, 0)))
+    g = g.union(cq.Workplane("XY").box(6, 8, 1.6, centered=(True, False, False)).translate((0, 38.8, 0)))
+    return g.union(cyl(CG_OD / 2, 0, 1.6).cut(cyl(CG_ID / 2, -1, 4)))
 
 # ---------------- export ----------------
 def place_on_bed(obj, flip=False):
