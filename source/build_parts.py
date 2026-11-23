@@ -1,0 +1,264 @@
+"""Yoyito hand line mount v1 - parametric part models (CadQuery).
+
+Run:  python3 build_parts.py <outdir>
+Writes print-oriented STL and STEP files for every printable part.
+All dimensions in mm. Assembly frame: body top face at z = 0, z up.
+"""
+import math, os, sys
+import cadquery as cq
+
+OUT = sys.argv[1] if len(sys.argv) > 1 else "out"
+os.makedirs(OUT, exist_ok=True)
+
+# ---------------- shared parameters ----------------
+BODY_R = 40.0            # body radius
+BODY_H = 14.0            # body height (top face z=0, bottom z=-14)
+TOP_PLATE = 3.0
+HUB_R = 11.0
+BORE_R = 33.2            # cavity bore, full depth
+SHOULDER_Z = -8.3        # body shoulder: gasket seat; male thread below it
+PITCH, LEAD, DEPTH = 3.0, 6.0, 1.4   # 2-start: lead = 2 x pitch
+MALE_ROOT = 35.6         # body external thread: root r 35.6, crest r 37.0
+FEMALE_CREST = 35.85     # lid internal thread: crest r 35.85, root r 37.25 (0.25 clearance)
+Z0 = -14.0               # thread phase origin (shared by body and lid so they mate)
+PIN_HOLE_R = 4.1
+NUT_AF, NUT_DEPTH = 13.2, 6.6
+DIV_T = 1.8
+DIV_ANGLES = (90, 190, 290)
+DIV_BOTTOM = -14.2       # dividers stand 0.2 past the bottom face
+GASKET = 0.75            # compressed gasket thickness, between shoulder and lid rim
+LID_RIM_Z = SHOULDER_Z - GASKET   # top of the lid skirt (-9.05)
+LID_FLOOR_TOP = -14.6    # 0.4 below the divider tips
+LID_FLOOR_T = 3.0
+
+# reel interface (from the reel; change these after measuring a real Yoyito)
+REEL_HEX_AF = 12.7
+REEL_HUB_LEN = 25.4
+
+def tri(u):
+    u = u % 1.0
+    return 1 - abs(2 * u - 1)
+
+def tri_soft(u, w=0.035, k=9):
+    """Triangle wave with crest and root rounded over +/- w (fraction of a pitch), so the
+    periodic spline through it does not ripple. Flanks stay at 45 degrees."""
+    return sum(tri(u + w * (2 * j / (k - 1) - 1)) for j in range(k)) / k
+
+def thread_curve(base, z_start, n=240):
+    pts = []
+    for i in range(n):
+        th = 2 * math.pi * i / n
+        r = base + DEPTH * tri_soft((z_start - Z0 - LEAD * th / (2 * math.pi)) / PITCH)
+        pts.append((r * math.cos(th), r * math.sin(th)))
+    return pts
+
+def twisted(base, z_start, h):
+    """Solid bounded by the thread surface r(theta, z), from z_start to z_start + h."""
+    wp = cq.Workplane("XY", origin=(0, 0, z_start)).spline(thread_curve(base, z_start), periodic=True).close()
+    return wp.twistExtrude(h, 360.0 * h / LEAD)
+
+def revolve(profile):
+    return cq.Workplane("XZ").polyline(profile).close().revolve(360, (0, 0, 0), (0, 1, 0))
+
+def hex_prism(af, z0, h, rot=0.0):
+    d = af / math.cos(math.radians(30))
+    return cq.Workplane("XY", origin=(0, 0, z0)).transformed(rotate=(0, 0, rot)).polygon(6, d).extrude(h)
+
+def cyl(r, z0, h, x=0.0, y=0.0):
+    return cq.Workplane("XY", origin=(x, y, z0)).circle(r).extrude(h)
+
+def fillet_pts(a, v, b, r, n=6):
+    """Points replacing corner v (between a-v and v-b) with an arc of radius r."""
+    ax, ay = a[0] - v[0], a[1] - v[1]; bx, by = b[0] - v[0], b[1] - v[1]
+    la, lb = math.hypot(ax, ay), math.hypot(bx, by)
+    ax, ay, bx, by = ax / la, ay / la, bx / lb, by / lb
+    ang = math.acos(max(-1, min(1, ax * bx + ay * by)))
+    t = r / math.tan(ang / 2)
+    p1 = (v[0] + ax * t, v[1] + ay * t); p2 = (v[0] + bx * t, v[1] + by * t)
+    bisx, bisy = ax + bx, ay + by; lbis = math.hypot(bisx, bisy)
+    c = (v[0] + bisx / lbis * r / math.sin(ang / 2), v[1] + bisy / lbis * r / math.sin(ang / 2))
+    a1 = math.atan2(p1[1] - c[1], p1[0] - c[0]); a2 = math.atan2(p2[1] - c[1], p2[0] - c[0])
+    da = (a2 - a1 + math.pi) % (2 * math.pi) - math.pi
+    return [(c[0] + r * math.cos(a1 + da * k / n), c[1] + r * math.sin(a1 + da * k / n)) for k in range(n + 1)]
+
+def lug_solid():
+    """Lanyard lug above the shoulder, with a 45 deg ramp on top so it prints without
+    support when the body is printed top face down. It sits outside the lid's diameter."""
+    plan = (cq.Workplane("XY", origin=(0, 0, SHOULDER_Z)).moveTo(38.0, -4.0).lineTo(42.0, -4.0)
+            .threePointArc((46.0, 0), (42.0, 4.0)).lineTo(38.0, 4.0).close().extrude(-SHOULDER_Z - 1.3))
+    ramp = revolve([(37.0, SHOULDER_Z), (46.5, SHOULDER_Z), (46.5, SHOULDER_Z + 0.5), (40.0, -1.3), (37.0, -1.3)])
+    return plan.intersect(ramp)
+
+def male_chamfer():
+    """30 deg lead-in on the male thread at the bottom face."""
+    return revolve([(MALE_ROOT, -BODY_H - 0.01), (38.5, -BODY_H - 0.01), (38.5, -BODY_H + (38.5 - MALE_ROOT) * 0.577)])
+
+def female_chamfer(z_rim):
+    """30 deg lead-in on the female thread at the lid rim."""
+    return revolve([(34.0, z_rim + 0.01), (37.6, z_rim + 0.01), (34.0, z_rim - (37.6 - 34.0) * 0.577)])
+
+# ---------------- 01 body ----------------
+def body_shell():
+    upper = revolve([(0, 0), (BODY_R - 1.2, 0), (BODY_R, -1.2), (BODY_R, SHOULDER_Z + 0.4), (BODY_R - 0.4, SHOULDER_Z), (0, SHOULDER_Z)])
+    return upper
+
+def body_extras():
+    e = cyl(HUB_R, -BODY_H, BODY_H - TOP_PLATE + 0.2)
+    for a in DIV_ANGLES:
+        d = cq.Workplane("XY").box(BORE_R + 0.6 - (HUB_R - 0.5), DIV_T, -TOP_PLATE - DIV_BOTTOM + 0.1, centered=(False, True, False)) \
+            .translate((HUB_R - 0.5, 0, DIV_BOTTOM)).rotate((0, 0, 0), (0, 0, 1), a)
+        e = e.union(d)
+    return e.union(lug_solid())
+
+def body_cuts():
+    return (hex_prism(NUT_AF, -BODY_H - 1, NUT_DEPTH + 1).union(cyl(PIN_HOLE_R, -BODY_H - 1, BODY_H + 2))
+            .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)))
+
+def cavity():
+    return revolve([(HUB_R - 0.5, -TOP_PLATE), (BORE_R, -TOP_PLATE), (BORE_R, -BODY_H - 1), (HUB_R - 0.5, -BODY_H - 1)])
+
+def body():
+    b = body_shell().union(twisted(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05))
+    b = b.cut(male_chamfer()).cut(cavity())
+    b = b.union(body_extras()).cut(body_cuts())
+    return b
+
+# ---------------- 04 lid (cap with internal thread) ----------------
+def lid_blank():
+    zb = LID_FLOOR_TOP - LID_FLOOR_T
+    return revolve([(0, zb), (BODY_R - 1.2, zb), (BODY_R, zb + 1.2), (BODY_R, LID_RIM_Z - 0.4), (BODY_R - 0.4, LID_RIM_Z), (0, LID_RIM_Z)])
+
+def scallops():
+    zb = LID_FLOOR_TOP - LID_FLOOR_T
+    c = None
+    for k in range(24):
+        a = 2 * math.pi * (k + 0.5) / 24     # offset from the revolve seam at 0 deg
+        s = cyl(3.0, zb - 1, LID_RIM_Z - zb + 2, x=42.4 * math.cos(a), y=42.4 * math.sin(a))
+        c = s if c is None else c.union(s)
+    return c
+
+def lid():
+    l = lid_blank().cut(twisted(FEMALE_CREST, LID_FLOOR_TOP, LID_RIM_Z - LID_FLOOR_TOP + 0.1))
+    return l.cut(female_chamfer(LID_RIM_Z)).cut(scallops())
+
+# ---------------- 03 hex plug (local: tab ends z=0, which sit on the washer) ----------------
+# The reel is captured between barbs behind its back face and a flange on its front face.
+#   - pulling the reel off, or line pulling forward: reel front face -> flange -> neck snap
+#   - pressing the reel toward the body: reel back face -> square barb shoulders -> tab ends -> washer
+# The six tabs flex inward only while the plug is pushed through the reel's hex hole. On the pin
+# they can move inward 0.3 at most, less than the 0.8 barb overlap, so the reel stays captured.
+PLUG_GAP = 0.05                  # axial clearance at each reel face
+BARB_AF = REEL_HEX_AF - 0.15 + 1.75   # barb flats stand 0.875 proud of the hex flats
+FOOT_AF = 11.2
+FRONT_FLANGE_R, FRONT_FLANGE_T = 9.0, 2.5
+NECK_LEN = 8.1
+TAB_SLOT_TOP = 14.0
+
+def plug_z():
+    back = 4.0                          # reel back face (local)
+    front = back + REEL_HUB_LEN         # reel front face
+    flange_bot = front + PLUG_GAP
+    neck_bot = flange_bot + FRONT_FLANGE_T
+    return back, front, flange_bot, neck_bot, neck_bot + NECK_LEN
+
+def plug():
+    af = REEL_HEX_AF - 0.15
+    back, front, flange_bot, neck_bot, neck_top = plug_z()
+    barb_top = back - PLUG_GAP
+    p = hex_prism(FOOT_AF, 0, 1.25)
+    p = p.union(cq.Workplane("XY", origin=(0, 0, 1.2)).polygon(6, FOOT_AF / math.cos(math.radians(30)))
+                .workplane(offset=barb_top - 1.0 - 1.2).polygon(6, BARB_AF / math.cos(math.radians(30))).loft())
+    p = p.union(hex_prism(BARB_AF, barb_top - 1.0, 1.0))
+    p = p.union(hex_prism(af, barb_top - 0.01, flange_bot - barb_top + 0.11))
+    for a in (30, 150, 270):
+        rib = cq.Workplane("XY").box(0.35, 1.0, flange_bot - TAB_SLOT_TOP - 3.5, centered=(False, True, False)) \
+            .translate((af / 2 - 0.1, 0, TAB_SLOT_TOP + 2.0)).rotate((0, 0, 0), (0, 0, 1), a)
+        p = p.union(rib)
+    p = p.union(revolve([(0, flange_bot), (FRONT_FLANGE_R, flange_bot), (FRONT_FLANGE_R, neck_bot - 0.5),
+                         (FRONT_FLANGE_R - 0.5, neck_bot), (0, neck_bot)]))
+    p = p.union(cyl(5.5, neck_bot - 0.1, NECK_LEN + 0.1))
+    p = p.cut(cyl(4.3, -1, neck_top + 2))
+    p = p.union(revolve([(4.35, neck_top - 2.1), (3.6, neck_top - 0.9), (3.6, neck_top - 0.7), (4.35, neck_top)]))
+    slot_bottom = neck_top - 5.5
+    for a in (45, 135, 225, 315):
+        s = cq.Workplane("XY").box(4.0, 1.2, 6.0, centered=(False, True, False)).translate((3.0, 0, slot_bottom + 0.6))
+        s = s.union(cq.Workplane("YZ", origin=(3.0, 0, slot_bottom + 0.6)).circle(0.6).extrude(4.0))
+        p = p.cut(s.rotate((0, 0, 0), (0, 0, 1), a))
+    for a in range(0, 360, 60):          # tab slots at the hex corners, round top end
+        s = cq.Workplane("XY").box(5.0, 1.0, TAB_SLOT_TOP + 1.0, centered=(False, True, False)).translate((3.5, 0, -1.0))
+        s = s.union(cq.Workplane("YZ", origin=(3.5, 0, TAB_SLOT_TOP)).circle(0.5).extrude(5.0))
+        p = p.cut(s.rotate((0, 0, 0), (0, 0, 1), a))
+    return p
+
+# ---------------- 05 test reel (local: back face z=0) ----------------
+REEL_A = (44.45, 3.0); REEL_V = (28.5, 6.1); REEL_L = (42.0, 25.4)
+def reel_profile():
+    pts = [(0, 0)]
+    pts += fillet_pts((0, 0), (44.45, 0), (44.45, 3.0), 1.0)
+    pts += fillet_pts((44.45, 0), REEL_A, REEL_V, 0.6, 3)
+    pts += fillet_pts(REEL_A, REEL_V, REEL_L, 1.5)
+    pts += fillet_pts(REEL_V, REEL_L, (0, 25.4), 1.5)
+    pts += [(0, 25.4)]
+    return pts
+
+def reel():
+    r = revolve(reel_profile())
+    r = r.cut(hex_prism(REEL_HEX_AF, -1, 28))
+    h2 = REEL_HEX_AF / 2
+    r = r.cut(revolve([(0, 25.41), (h2 + 0.6, 25.41), (h2 - 0.01, 24.8), (0, 24.8)]))
+    for a in (30, 150, 270):
+        r = r.cut(cyl(8.5, -1, 28, x=17.5 * math.cos(math.radians(a)), y=17.5 * math.sin(math.radians(a))))
+    tie = cq.Workplane("YZ", origin=(20.0, 0, 6.6)).circle(1.25).extrude(13.0).rotate((0, 0, 0), (0, 0, 1), 30)
+    r = r.cut(tie)
+    return r
+
+# ---------------- coupons and template ----------------
+def coupon_hub():
+    c = cyl(15.0, 0, 10.0)
+    c = c.cut(cyl(PIN_HOLE_R, -1, 12)).cut(hex_prism(NUT_AF, 10.0 - NUT_DEPTH, NUT_DEPTH + 1))
+    return c
+
+def coupon_thread_body():
+    """Male thread ring with a short shoulder flange, like the bottom of the body."""
+    c = revolve([(BORE_R, SHOULDER_Z), (BODY_R - 0.4, SHOULDER_Z), (BODY_R, SHOULDER_Z + 0.4), (BODY_R, SHOULDER_Z + 1.5), (BORE_R, SHOULDER_Z + 1.5)])
+    c = c.union(twisted(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05))
+    return c.cut(male_chamfer()).cut(cyl(BORE_R, -BODY_H - 1, 10))
+
+def coupon_thread_lid():
+    """Female thread ring with a 1.5 floor ring, like the lid."""
+    c = revolve([(BORE_R, LID_FLOOR_TOP - 1.5), (BODY_R, LID_FLOOR_TOP - 1.5), (BODY_R, LID_RIM_Z - 0.4), (BODY_R - 0.4, LID_RIM_Z), (BORE_R, LID_RIM_Z)])
+    c = c.cut(twisted(FEMALE_CREST, LID_FLOOR_TOP, LID_RIM_Z - LID_FLOOR_TOP + 0.1))
+    return c.cut(female_chamfer(LID_RIM_Z)).cut(cyl(BORE_R, LID_FLOOR_TOP - 2, 10))
+
+def gasket_template():
+    g = cyl(39.5, 0, 1.6).cut(cyl(37.1, -1, 4))
+    return g.union(cq.Workplane("XY").box(6, 8, 1.6, centered=(True, False, False)).translate((0, 38.8, 0)))
+
+# ---------------- export ----------------
+def place_on_bed(obj, flip=False):
+    if flip:
+        obj = obj.rotate((0, 0, 0), (1, 0, 0), 180)
+    bb = obj.val().BoundingBox()
+    return obj.translate((0, 0, -bb.zmin))
+
+PARTS = {
+    "01_body":              (body, True),
+    "03_hex_plug":          (plug, False),
+    "04_lid":               (lid, False),
+    "05_test_reel":         (reel, False),
+    "coupon_hub":           (coupon_hub, False),
+    "coupon_thread_body":   (coupon_thread_body, True),
+    "coupon_thread_lid":    (coupon_thread_lid, False),
+    "gasket_template":      (gasket_template, False),
+}
+
+if __name__ == "__main__":
+    only = sys.argv[2:] or list(PARTS)
+    for name in only:
+        fn, flip = PARTS[name]
+        obj = fn()
+        bed = place_on_bed(obj, flip)
+        cq.exporters.export(bed, os.path.join(OUT, f"{name}.stl"), tolerance=0.02, angularTolerance=0.1)
+        cq.exporters.export(bed, os.path.join(OUT, f"{name}.step"))
+        bb = bed.val().BoundingBox()
+        print(f"{name}: {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f} mm, valid={bed.val().isValid()}", flush=True)
