@@ -219,12 +219,16 @@ def plug():
     return p
 
 # ---------------- 05 test reel (local: back face z=0) ----------------
-# Yoyito-style spool: line groove at the back, cone that the line slides off, and a dished
-# (concave) front face with finger holes around a central hex hub, so fingertips reach through.
-REEL_A = (44.45, 3.0); REEL_V = (30.0, 6.1); REEL_L = (42.0, 25.4)
+# Yoyito-style spool: line groove at the back, cone that the line slides off, and a recessed front
+# face: a flat floor through which the finger holes pass, tapering up to the front rim, around a
+# central hex hub. The core root (REEL_V) is raised to trade line capacity for a deep, flat floor.
+REEL_A = (44.45, 3.0); REEL_V = (33.0, 6.1); REEL_L = (42.0, 25.4)
 REEL_FRONT = REEL_L[1]
-DISH_R, DISH_DEPTH = 38.0, 17.0       # spherical dish: rim radius at the front face, depth at the center
-HUB_BOSS_R = 9.8                      # hex hub left standing in the dish; the plug flange (r 9) bears on it
+DISH_FLOOR_Z = 8.0                    # flat floor height above the back face = finger-hole length
+DISH_FLAT_R = 29.5                    # flat floor out to here, then a straight taper...
+DISH_R = 38.5                         # ...up to this radius at the front face
+DISH_FILLET, DISH_RIM_FILLET = 3.0, 2.0
+HUB_BOSS_R = 9.8                      # hex hub left standing in the recess; the plug flange (r 9) bears on it
 FINGER_HOLES, FINGER_D, FINGER_PCR = 6, 17.0, 19.5
 FINGER_ANGLE0 = 30.0                  # one hole lines up with the line-tie hole
 
@@ -237,15 +241,14 @@ def reel_profile():
     pts += [(0, REEL_FRONT)]
     return pts
 
-def dish_z(r):
-    rs = (DISH_R ** 2 + DISH_DEPTH ** 2) / (2 * DISH_DEPTH)
-    return REEL_FRONT - DISH_DEPTH + rs - math.sqrt(rs * rs - r * r)
-
 def dish_cut():
-    """Revolved dish outside the hub boss, edges rounded where it meets the front face and the boss."""
-    pts = [(HUB_BOSS_R, REEL_FRONT + 1)]
-    pts += [(HUB_BOSS_R + (DISH_R - HUB_BOSS_R) * k / 40, dish_z(HUB_BOSS_R + (DISH_R - HUB_BOSS_R) * k / 40)) for k in range(41)]
-    pts += [(DISH_R, REEL_FRONT + 1)]
+    """Flat floor from the hub boss to DISH_FLAT_R, straight taper to DISH_R at the front face,
+    both bends rounded."""
+    f, z = (DISH_FLAT_R, DISH_FLOOR_Z), (DISH_R, REEL_FRONT)
+    pts = [(HUB_BOSS_R, REEL_FRONT + 1), (HUB_BOSS_R, DISH_FLOOR_Z)]
+    pts += fillet_pts((HUB_BOSS_R, DISH_FLOOR_Z), f, z, DISH_FILLET)
+    rim = fillet_pts(f, z, (DISH_R + 10, REEL_FRONT), DISH_RIM_FILLET)
+    pts += rim[:-1] + [(rim[-1][0], REEL_FRONT + 1)]
     return revolve(pts)
 
 def reel():
@@ -257,7 +260,7 @@ def reel():
     for k in range(FINGER_HOLES):
         a = math.radians(FINGER_ANGLE0 + 360.0 * k / FINGER_HOLES)
         r = r.cut(cyl(FINGER_D / 2, -1, REEL_FRONT + 3, x=FINGER_PCR * math.cos(a), y=FINGER_PCR * math.sin(a)))
-    tie = (cq.Workplane("YZ", origin=(FINGER_PCR, 0, REEL_V[1] + 0.5)).circle(1.25).extrude(34.0 - FINGER_PCR)
+    tie = (cq.Workplane("YZ", origin=(FINGER_PCR, 0, REEL_V[1] + 0.5)).circle(1.25).extrude(REEL_V[0] + 4.0 - FINGER_PCR)
            .rotate((0, 0, 0), (0, 0, 1), FINGER_ANGLE0))
     return r.cut(tie)
 

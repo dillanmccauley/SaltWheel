@@ -27,8 +27,10 @@ All files are in millimeters and already oriented for printing. Don't rotate the
   compartment. The hub's bottom face now presses a small silicone center gasket into a recess in the lid
   floor, and a 10 mm hole in the lid floor (inside that gasket) lets that water drain straight out the back.
   The compartment is sealed by the rim gasket and the center gasket together; both compress to 0.75 mm.
-- **Test reel:** the front face is dished like a real Yoyito, with six 17 mm finger holes around the hex hub.
-  The holes are only 10–17 mm long through the dish, so fingertips reach through, and they also let the reel drain.
+- **Test reel:** the front face is recessed like a real Yoyito: a flat floor 8 mm above the back face, tapering
+  up to the front rim, with six 17 mm finger holes through the floor around the hex hub. The holes are only 8 mm
+  long, so fingers pass straight through, and they also let the reel drain. To make room, the line core is larger
+  (root diameter 66 mm instead of 57), so the groove is shallower and holds less line than Rev F.
 
 ## Slicer settings (PETG, Ender 3 Pro)
 
@@ -55,7 +57,7 @@ All files are in millimeters and already oriented for printing. Don't rotate the
    - Pin hole tight: drill it out with an 8.2 mm drill.
 4. Plate 2: body. Plate 3: lid. Plate 4: test reel and two spare plugs.
 5. Clean up: remove strings, run a fingernail through the threads, ream each plug bore with an 8.5 mm
-   drill by hand, sand the reel's front lip and the finger-hole edges with 400 grit, clear the tie hole
+   drill by hand, sand the reel's front lip, the taper and the finger-hole edges with 400 grit, clear the tie hole
    with a 2.5 mm drill, and check that the drain grooves on the body's top face and the lid's center drain hole are clear.
 6. Make the pin from Ø8 Delrin rod: cut it a little long, face it to 56.35 mm, chamfer both ends 0.5 mm.
    Cut 10 mm of M8 × 1.25 thread on one end with the die, keeping it square. Spin the rod in a drill and
