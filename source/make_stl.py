@@ -63,7 +63,7 @@ def body_mesh():
 
 def lid_mesh():
     m = to_manifold(lid_blank()) - thread_solid(FEMALE_CREST, LID_FLOOR_TOP, LID_RIM_Z - LID_FLOOR_TOP + 0.1)
-    return m - to_manifold(female_chamfer(LID_RIM_Z).union(scallops()))
+    return m - to_manifold(female_chamfer(LID_RIM_Z).union(scallops()).union(lid_center_cuts()))
 
 def coupon_thread_body_mesh():
     ring = revolve([(BORE_R, SHOULDER_Z), (BODY_R - 0.4, SHOULDER_Z), (BODY_R, SHOULDER_Z + 0.4), (BODY_R, SHOULDER_Z + 1.5), (BORE_R, SHOULDER_Z + 1.5)])
