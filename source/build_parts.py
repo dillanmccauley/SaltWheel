@@ -45,7 +45,7 @@ LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the ce
 
 # reel interface (from the reel; change these after measuring a real Yoyito)
 REEL_HEX_AF = 12.7
-REEL_HUB_LEN = 25.4
+REEL_HUB_LEN = 8.0        # test reel: hex runs from the back face to the flat front floor
 
 def tri(u):
     u = u % 1.0
@@ -173,14 +173,17 @@ def lid():
 # The reel is captured between barbs behind its back face and a flange on its front face.
 #   - pulling the reel off, or line pulling forward: reel front face -> flange -> neck snap
 #   - pressing the reel toward the body: reel back face -> square barb shoulders -> tab ends -> washer
-# The six tabs flex inward only while the plug is pushed through the reel's hex hole. On the pin
-# they can move inward 0.3 at most, less than the 0.8 barb overlap, so the reel stays captured.
+# The six tabs flex inward only while the plug is pushed through the reel's hex hole. The bore is
+# relieved to r 4.45 along the tabs (thinner, more flexible tabs), so on the pin they can move inward
+# 0.45 at most, less than the 0.75 barb overlap, and the reel stays captured.
 PLUG_GAP = 0.05                  # axial clearance at each reel face
-BARB_AF = REEL_HEX_AF - 0.15 + 1.75   # barb flats stand 0.875 proud of the hex flats
+BARB_AF = REEL_HEX_AF - 0.15 + 1.5    # barb flats stand 0.75 proud of the hex flats
 FOOT_AF = 11.2
 FRONT_FLANGE_R, FRONT_FLANGE_T = 9.0, 2.5
 NECK_LEN = 8.1
-TAB_SLOT_TOP = 14.0
+TAB_RELIEF_R = 4.45             # bore radius along the tabs (pin clearance bore is 4.3)
+PIN_STANDOUT_ABOVE_PLUG = 1.3   # pin tip above the plug neck top
+WASHER_T = 1.0
 
 def plug_z():
     back = 4.0                          # reel back face (local)
@@ -193,19 +196,21 @@ def plug():
     af = REEL_HEX_AF - 0.15
     back, front, flange_bot, neck_bot, neck_top = plug_z()
     barb_top = back - PLUG_GAP
+    tab_slot_top = min(14.0, flange_bot - 1.5)   # tabs flex up to here; stays below the front flange
     p = hex_prism(FOOT_AF, 0, 1.25)
     p = p.union(cq.Workplane("XY", origin=(0, 0, 1.2)).polygon(6, FOOT_AF / math.cos(math.radians(30)))
                 .workplane(offset=barb_top - 1.0 - 1.2).polygon(6, BARB_AF / math.cos(math.radians(30))).loft())
     p = p.union(hex_prism(BARB_AF, barb_top - 1.0, 1.0))
     p = p.union(hex_prism(af, barb_top - 0.01, flange_bot - barb_top + 0.11))
-    for a in (30, 150, 270):
-        rib = cq.Workplane("XY").box(0.35, 1.0, flange_bot - TAB_SLOT_TOP - 3.5, centered=(False, True, False)) \
-            .translate((af / 2 - 0.1, 0, TAB_SLOT_TOP + 2.0)).rotate((0, 0, 0), (0, 0, 1), a)
+    rib_len = flange_bot - tab_slot_top - 3.5    # anti-rattle ribs, only where a long hex leaves room
+    for a in ((30, 150, 270) if rib_len > 1.0 else ()):
+        rib = cq.Workplane("XY").box(0.35, 1.0, rib_len, centered=(False, True, False)) \
+            .translate((af / 2 - 0.1, 0, tab_slot_top + 2.0)).rotate((0, 0, 0), (0, 0, 1), a)
         p = p.union(rib)
     p = p.union(revolve([(0, flange_bot), (FRONT_FLANGE_R, flange_bot), (FRONT_FLANGE_R, neck_bot - 0.5),
                          (FRONT_FLANGE_R - 0.5, neck_bot), (0, neck_bot)]))
     p = p.union(cyl(5.5, neck_bot - 0.1, NECK_LEN + 0.1))
-    p = p.cut(cyl(4.3, -1, neck_top + 2))
+    p = p.cut(cyl(4.3, -1, neck_top + 2)).cut(cyl(TAB_RELIEF_R, -1, tab_slot_top))
     p = p.union(revolve([(4.35, neck_top - 2.1), (3.6, neck_top - 0.9), (3.6, neck_top - 0.7), (4.35, neck_top)]))
     slot_bottom = neck_top - 5.5
     for a in (45, 135, 225, 315):
@@ -213,22 +218,27 @@ def plug():
         s = s.union(cq.Workplane("YZ", origin=(3.0, 0, slot_bottom + 0.6)).circle(0.6).extrude(4.0))
         p = p.cut(s.rotate((0, 0, 0), (0, 0, 1), a))
     for a in range(0, 360, 60):          # tab slots at the hex corners, round top end
-        s = cq.Workplane("XY").box(5.0, 1.0, TAB_SLOT_TOP + 1.0, centered=(False, True, False)).translate((3.5, 0, -1.0))
-        s = s.union(cq.Workplane("YZ", origin=(3.5, 0, TAB_SLOT_TOP)).circle(0.5).extrude(5.0))
+        s = cq.Workplane("XY").box(5.0, 1.0, tab_slot_top + 1.0, centered=(False, True, False)).translate((3.5, 0, -1.0))
+        s = s.union(cq.Workplane("YZ", origin=(3.5, 0, tab_slot_top)).circle(0.5).extrude(5.0))
         p = p.cut(s.rotate((0, 0, 0), (0, 0, 1), a))
     return p
+
+def pin_dims():
+    """Delrin pin: (height above the body's top face, total length, groove center from the threaded end)."""
+    stand = WASHER_T + plug_z()[4] + PIN_STANDOUT_ABOVE_PLUG
+    length = stand + BODY_H
+    return stand, length, length - 2.1
 
 # ---------------- 05 test reel (local: back face z=0) ----------------
 # Yoyito-style spool: line groove at the back, cone that the line slides off, and a recessed front
 # face: a flat floor through which the finger holes pass, tapering up to the front rim, around a
-# central hex hub. The core root (REEL_V) is raised to trade line capacity for a deep, flat floor.
+# central hex hole that ends flush with the floor; the plug's flange and neck sit inside the recess. The core root (REEL_V) is raised to trade line capacity for a deep, flat floor.
 REEL_A = (44.45, 3.0); REEL_V = (33.0, 6.1); REEL_L = (42.0, 25.4)
 REEL_FRONT = REEL_L[1]
-DISH_FLOOR_Z = 8.0                    # flat floor height above the back face = finger-hole length
+DISH_FLOOR_Z = REEL_HUB_LEN           # flat floor, flush with the end of the hex; = finger-hole length
 DISH_FLAT_R = 29.5                    # flat floor out to here, then a straight taper...
 DISH_R = 38.5                         # ...up to this radius at the front face
 DISH_FILLET, DISH_RIM_FILLET = 3.0, 2.0
-HUB_BOSS_R = 9.8                      # hex hub left standing in the recess; the plug flange (r 9) bears on it
 FINGER_HOLES, FINGER_D, FINGER_PCR = 6, 17.0, 19.5
 FINGER_ANGLE0 = 30.0                  # one hole lines up with the line-tie hole
 
@@ -245,8 +255,8 @@ def dish_cut():
     """Flat floor from the hub boss to DISH_FLAT_R, straight taper to DISH_R at the front face,
     both bends rounded."""
     f, z = (DISH_FLAT_R, DISH_FLOOR_Z), (DISH_R, REEL_FRONT)
-    pts = [(HUB_BOSS_R, REEL_FRONT + 1), (HUB_BOSS_R, DISH_FLOOR_Z)]
-    pts += fillet_pts((HUB_BOSS_R, DISH_FLOOR_Z), f, z, DISH_FILLET)
+    pts = [(0, REEL_FRONT + 1), (0, DISH_FLOOR_Z)]
+    pts += fillet_pts((0, DISH_FLOOR_Z), f, z, DISH_FILLET)
     rim = fillet_pts(f, z, (DISH_R + 10, REEL_FRONT), DISH_RIM_FILLET)
     pts += rim[:-1] + [(rim[-1][0], REEL_FRONT + 1)]
     return revolve(pts)
@@ -256,7 +266,7 @@ def reel():
     r = r.cut(dish_cut())
     r = r.cut(hex_prism(REEL_HEX_AF, -1, REEL_FRONT + 3))
     h2 = REEL_HEX_AF / 2
-    r = r.cut(revolve([(0, REEL_FRONT + 0.01), (h2 + 0.6, REEL_FRONT + 0.01), (h2 - 0.01, REEL_FRONT - 0.6), (0, REEL_FRONT - 0.6)]))
+    r = r.cut(revolve([(0, REEL_HUB_LEN + 0.01), (h2 + 0.6, REEL_HUB_LEN + 0.01), (h2 - 0.01, REEL_HUB_LEN - 0.6), (0, REEL_HUB_LEN - 0.6)]))
     for k in range(FINGER_HOLES):
         a = math.radians(FINGER_ANGLE0 + 360.0 * k / FINGER_HOLES)
         r = r.cut(cyl(FINGER_D / 2, -1, REEL_FRONT + 3, x=FINGER_PCR * math.cos(a), y=FINGER_PCR * math.sin(a)))
@@ -316,3 +326,4 @@ if __name__ == "__main__":
         cq.exporters.export(bed, os.path.join(OUT, f"{name}.step"))
         bb = bed.val().BoundingBox()
         print(f"{name}: {bb.xlen:.2f} x {bb.ylen:.2f} x {bb.zlen:.2f} mm, valid={bed.val().isValid()}", flush=True)
+    print("pin: %.2f above top face, %.2f long, groove %.2f from threaded end" % pin_dims())
