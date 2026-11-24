@@ -21,9 +21,13 @@ All files are in millimeters and already oriented for printing. Don't rotate the
 
 ## Drainage and sealing (new in Rev G)
 
-- **Under the reel:** the body's top face has a gutter ring around the washer seat and six radial grooves
-  that get deeper toward the rim, so water and sand that collect under the reel run out the edge instead of
-  sitting against the pin. The face is still flat, so the body prints top face down as before.
+- **Reel close to the body:** the washer and the plug's foot sit down in a 19.2 mm pocket in the body's top
+  face, so the reel's back face runs only 0.6 mm above the body (`REEL_GAP`). Line that slips off the back of
+  the reel during a retrieve can't wedge between them. The plug rides the pin on two short 8.2 mm bearing bands
+  about 20 mm apart, so the reel can tilt at most about 0.4 mm at the body's edge and doesn't rub.
+- **Under the reel:** a gutter ring around the pocket feeds six radial grooves that get deeper toward the rim,
+  so water and sand under the reel run out the edge. Water in the pocket drains down three slots past the
+  nut corners and out the lid (below). The face is still flat, so the body prints top face down as before.
 - **Down the pin:** water that follows the pin thread into the nut pocket no longer reaches the tackle
   compartment. The hub's bottom face now presses a small silicone center gasket into a recess in the lid
   floor, and a 10 mm hole in the lid floor (inside that gasket) lets that water drain straight out the back.
@@ -58,20 +62,22 @@ All files are in millimeters and already oriented for printing. Don't rotate the
    - The M8 nylon nut should press into the hub coupon; the Ø8 rod should pass through its hole.
 3. Fix anything that failed and reprint that coupon.
    - Threads tight: XY size compensation −0.05 mm on both thread parts. Loose or wobbly: +0.05 mm.
-   - Pin hole tight: drill it out with an 8.2 mm drill.
+   - Pin hole tight: drill it out with an 8.2 mm drill. The pin should slide through with no side play;
+     that is the fit the plug's bearing bands need.
 4. Plate 2: body. Plate 3: lid. Plate 4: test reel and two spare plugs.
-5. Clean up: remove strings, run a fingernail through the threads, ream each plug bore with an 8.5 mm
-   drill by hand, sand the reel's front lip, the taper and the finger-hole edges with 400 grit, clear the tie hole
-   with a 2.5 mm drill, and check that the drain grooves on the body's top face and the lid's center drain hole are clear.
-6. Make the pin from Ø8 Delrin rod: cut it a little long, face it to 38.95 mm, chamfer both ends 0.5 mm.
+5. Clean up: remove strings, run a fingernail through the threads, ream each plug bore by hand with an 8.2 mm
+   drill from the tab end to a depth of 23 mm (tape-mark the drill so you don't cut the snap bead at the top), sand the reel's front lip, the taper and the finger-hole edges with 400 grit, clear the tie hole
+   with a 2.5 mm drill, and check that the drain grooves, the pocket's three drain slots and the lid's center drain hole are clear.
+   The pocket floor prints as a bridge; if it sags, sand it flat so the washer sits level.
+6. Make the pin from Ø8 Delrin rod: cut it a little long, face it to 37.45 mm, chamfer both ends 0.5 mm.
    Cut 10 mm of M8 × 1.25 thread on one end with the die, keeping it square. Spin the rod in a drill and
-   file a 45° V groove centered 36.85 mm from the threaded end, down to a 7.0 mm root.
+   file a 45° V groove centered 35.35 mm from the threaded end, down to a 7.0 mm root.
 7. Lay the gasket template on 1 mm silicone sheet and cut along both edges of both rings with a sharp
-   hobby knife (rim gasket 74.2 ID × 79.0 OD, center gasket 16.6 ID × 22.6 OD).
+   hobby knife (rim gasket 74.2 ID × 79.0 OD, center gasket 17.4 ID × 22.6 OD).
 8. Assemble:
    1. Press the nylon nut into the hex pocket inside the body's hub.
-   2. Thread the pin in from the top until it stands 24.95 mm above the top face.
-   3. Drop the PTFE washer over the pin.
+   2. Thread the pin in from the top until it stands 23.45 mm above the top face.
+   3. Drop the PTFE washer over the pin into the pocket.
    4. Push a plug into the reel from the front, tab end first, until the barbs click behind the back face.
       The reel is now captured between the barbs and the plug's front flange. (To remove the plug later,
       off the pin: squeeze the barbs in from the back and push it out the front.)

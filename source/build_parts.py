@@ -33,15 +33,26 @@ LID_FLOOR_T = 3.0
 
 # drainage (top face, under the reel). The top face stays flat so the body still prints face down;
 # a gutter ring around the washer seat feeds radial grooves whose floors slope down to the rim.
-GUTTER_R0, GUTTER_R1, GUTTER_DEPTH = 9.8, 11.4, 0.8
+GUTTER_R0, GUTTER_R1, GUTTER_DEPTH = 9.6, 11.4, 0.8   # R0 = plug pocket radius
 DRAIN_GROOVES, DRAIN_W, DRAIN_DEPTH_RIM, DRAIN_ANGLE0 = 6, 3.0, 1.3, 30.0
 
 # pin drain (pin hole -> nut pocket -> out through the lid, sealed off from the compartment)
-CG_ID, CG_OD = 16.6, 22.6         # center gasket, cut from the same 1 mm silicone sheet
+CG_ID, CG_OD = 17.4, 22.6         # center gasket, cut from the same 1 mm silicone sheet
 CG_RECESS_R = CG_OD / 2 + 0.3     # locating recess in the lid floor
 CG_RECESS_FLOOR = LID_FLOOR_TOP - 0.5
 HUB_BOTTOM = CG_RECESS_FLOOR + GASKET   # hub land compresses the center gasket to the same 0.75 as the rim gasket
 LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the center gasket
+
+# reel-to-body gap: the washer and the plug's foot/barbs sit down in a pocket in the top face, so
+# the reel's back face runs REEL_GAP above the body and loose line can't wedge between them.
+REEL_GAP = 0.6
+PLUG_BACK = 4.0                   # plug: tab ends to reel back face
+WASHER_T = 1.0
+POCKET_R = GUTTER_R0
+POCKET_FLOOR = REEL_GAP - PLUG_BACK - WASHER_T   # washer seat (-4.4)
+# water in the pocket drains down three slots past the nut corners to the hub bottom, inside the
+# center gasket, and out the lid drain hole
+NUT_DRAIN_R0, NUT_DRAIN_R1, NUT_DRAIN_W = 6.8, 8.1, 1.4
 
 # reel interface (from the reel; change these after measuring a real Yoyito)
 REEL_HEX_AF = 12.7
@@ -132,9 +143,17 @@ def drain_cuts():
         c = c.union(g)
     return c
 
+def pocket_cuts():
+    c = cyl(POCKET_R, POCKET_FLOOR, -POCKET_FLOOR + 1)
+    for a in (0, 120, 240):            # hex_prism puts corners at 0, 60, ...
+        s = cq.Workplane("XY").box(NUT_DRAIN_R1 - NUT_DRAIN_R0, NUT_DRAIN_W, POCKET_FLOOR - HUB_BOTTOM + 1.1,
+                                   centered=(False, True, False)).translate((NUT_DRAIN_R0, 0, HUB_BOTTOM - 1))
+        c = c.union(s.rotate((0, 0, 0), (0, 0, 1), a))
+    return c
+
 def body_cuts():
     nut_top = -BODY_H + NUT_DEPTH
-    return (hex_prism(NUT_AF, HUB_BOTTOM - 1, nut_top - HUB_BOTTOM + 1).union(cyl(PIN_HOLE_R, HUB_BOTTOM - 1, -HUB_BOTTOM + 2))
+    return pocket_cuts().union(hex_prism(NUT_AF, HUB_BOTTOM - 1, nut_top - HUB_BOTTOM + 1).union(cyl(PIN_HOLE_R, HUB_BOTTOM - 1, -HUB_BOTTOM + 2))
             .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)).union(drain_cuts()))
 
 def cavity():
@@ -180,13 +199,15 @@ PLUG_GAP = 0.05                  # axial clearance at each reel face
 BARB_AF = REEL_HEX_AF - 0.15 + 1.5    # barb flats stand 0.75 proud of the hex flats
 FOOT_AF = 11.2
 FRONT_FLANGE_R, FRONT_FLANGE_T = 9.0, 2.5
-NECK_LEN = 8.1
+NECK_LEN = 11.0
 TAB_RELIEF_R = 4.45             # bore radius along the tabs (pin clearance bore is 4.3)
+LAND_R = 4.1                    # anti-wobble bearing bands on the pin: ream to 8.2
+LAND_BOTTOM_LEN = 2.0           # at the tab tips
+LAND_TOP_BELOW_NECK = (7.5, 2.2) # top band spans neck_top-7.5 .. neck_top-2.2, just under the snap bead
 PIN_STANDOUT_ABOVE_PLUG = 1.3   # pin tip above the plug neck top
-WASHER_T = 1.0
 
 def plug_z():
-    back = 4.0                          # reel back face (local)
+    back = PLUG_BACK                    # reel back face (local)
     front = back + REEL_HUB_LEN         # reel front face
     flange_bot = front + PLUG_GAP
     neck_bot = flange_bot + FRONT_FLANGE_T
@@ -210,7 +231,10 @@ def plug():
     p = p.union(revolve([(0, flange_bot), (FRONT_FLANGE_R, flange_bot), (FRONT_FLANGE_R, neck_bot - 0.5),
                          (FRONT_FLANGE_R - 0.5, neck_bot), (0, neck_bot)]))
     p = p.union(cyl(5.5, neck_bot - 0.1, NECK_LEN + 0.1))
-    p = p.cut(cyl(4.3, -1, neck_top + 2)).cut(cyl(TAB_RELIEF_R, -1, tab_slot_top))
+    p = p.cut(cyl(4.3, -1, neck_top + 2)).cut(cyl(TAB_RELIEF_R, LAND_BOTTOM_LEN, tab_slot_top - LAND_BOTTOM_LEN))
+    lo, hi = LAND_TOP_BELOW_NECK
+    p = p.union(cyl(4.31, 0, LAND_BOTTOM_LEN).cut(cyl(LAND_R, -1, 5)))           # bottom band
+    p = p.union(cyl(4.31, neck_top - lo, lo - hi).cut(cyl(LAND_R, -30, 80)))    # top band
     p = p.union(revolve([(4.35, neck_top - 2.1), (3.6, neck_top - 0.9), (3.6, neck_top - 0.7), (4.35, neck_top)]))
     slot_bottom = neck_top - 5.5
     for a in (45, 135, 225, 315):
@@ -225,7 +249,7 @@ def plug():
 
 def pin_dims():
     """Delrin pin: (height above the body's top face, total length, groove center from the threaded end)."""
-    stand = WASHER_T + plug_z()[4] + PIN_STANDOUT_ABOVE_PLUG
+    stand = POCKET_FLOOR + WASHER_T + plug_z()[4] + PIN_STANDOUT_ABOVE_PLUG
     length = stand + BODY_H
     return stand, length, length - 2.1
 
