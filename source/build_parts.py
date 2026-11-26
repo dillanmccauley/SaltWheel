@@ -47,9 +47,9 @@ LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the ce
 # the reel's back face runs REEL_GAP above the body and loose line can't wedge between them.
 REEL_GAP = 0.6
 PLUG_BACK = 4.0                   # plug: tab ends to reel back face
-WASHER_T = 1.0
-POCKET_R = GUTTER_R0
-POCKET_FLOOR = REEL_GAP - PLUG_BACK - WASHER_T   # washer seat (-4.4)
+WASHER_T, WASHER_OD = 1.6, 16.0   # PTFE washer, standard M8 DIN 125: 8.4 x 16 x 1.6
+POCKET_R = GUTTER_R0              # set by the plug barbs (corners r 8.1); the 16 mm washer fits inside
+POCKET_FLOOR = REEL_GAP - PLUG_BACK - WASHER_T   # washer seat (-5.0)
 # water in the pocket drains down three slots past the nut corners to the hub bottom, inside the
 # center gasket, and out the lid drain hole
 NUT_DRAIN_R0, NUT_DRAIN_R1, NUT_DRAIN_W = 6.8, 8.1, 1.4
