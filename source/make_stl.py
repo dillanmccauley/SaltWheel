@@ -56,7 +56,7 @@ def save(m, path, flip=False):
     return t
 
 def body_mesh():
-    m = to_manifold(body_shell()) + thread_solid(MALE_ROOT, THREAD_BOT, SHOULDER_Z - THREAD_BOT + 0.05)
+    m = to_manifold(body_shell()) + thread_solid(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05)
     m = m - to_manifold(male_chamfer().union(cavity()))
     m = m + to_manifold(body_extras())
     return m - to_manifold(body_cuts())
@@ -67,8 +67,8 @@ def lid_mesh():
 
 def coupon_thread_body_mesh():
     ring = revolve([(BORE_R, SHOULDER_Z), (BODY_R - 0.4, SHOULDER_Z), (BODY_R, SHOULDER_Z + 0.4), (BODY_R, SHOULDER_Z + 1.5), (BORE_R, SHOULDER_Z + 1.5)])
-    m = to_manifold(ring) + thread_solid(MALE_ROOT, THREAD_BOT, SHOULDER_Z - THREAD_BOT + 0.05)
-    return m - to_manifold(male_chamfer().union(cyl(BORE_R, THREAD_BOT - 1, 10)))
+    m = to_manifold(ring) + thread_solid(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05)
+    return m - to_manifold(male_chamfer().union(cyl(BORE_R, -BODY_H - 1, 10)))
 
 def coupon_thread_lid_mesh():
     ring = revolve([(BORE_R, LID_FLOOR_TOP - 1.5), (BODY_R, LID_FLOOR_TOP - 1.5), (BODY_R, LID_RIM_Z - 0.4), (BODY_R - 0.4, LID_RIM_Z), (BORE_R, LID_RIM_Z)])
@@ -78,8 +78,8 @@ def coupon_thread_lid_mesh():
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     b = body_mesh(); l = lid_mesh()
-    print("thread mesh error, body: %.3f mm" % thread_error(b, MALE_ROOT, THREAD_BOT + 1.85, SHOULDER_Z - 0.3))
-    print("thread mesh error, lid:  %.3f mm" % thread_error(l, FEMALE_CREST, LID_FLOOR_TOP + 0.2, LID_RIM_Z - 1.25))
+    print("thread mesh error, body: %.3f mm" % thread_error(b, MALE_ROOT, -13.0, -8.6))
+    print("thread mesh error, lid:  %.3f mm" % thread_error(l, FEMALE_CREST, -14.4, -10.3))
     print("body/lid overlap: %.4f mm3" % (b ^ l).volume())
     for name, m, flip in (("01_body", b, True), ("04_lid", l, False),
                           ("coupon_thread_body", coupon_thread_body_mesh(), True),

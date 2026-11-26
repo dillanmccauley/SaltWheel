@@ -26,15 +26,9 @@ NUT_AF, NUT_DEPTH = 13.2, 6.6
 DIV_T = 1.8
 DIV_ANGLES = (90, 190, 290)
 DIV_BOTTOM = -14.2       # dividers stand 0.2 past the bottom face
-GASKET_T = 2.0           # silicone sheet thickness for both gaskets (60A-70A)
-GASKET_SQUEEZE = 0.20    # 20% compression when the lid is hand tight
-GASKET = GASKET_T * (1 - GASKET_SQUEEZE)   # compressed gasket thickness (1.6), shoulder to lid rim
-# The thread runs THREAD_EXT below the body's bottom face so a thicker gasket doesn't cost thread
-# engagement: body/lid overlap stays what it was with the original 0.75 mm compressed gasket.
-THREAD_EXT = max(0.0, GASKET - 0.75)
-THREAD_BOT = -BODY_H - THREAD_EXT
-LID_RIM_Z = SHOULDER_Z - GASKET   # top of the lid skirt (-9.9)
-LID_FLOOR_TOP = THREAD_BOT - 0.6   # 0.6 below the bottom of the male thread
+GASKET = 0.75            # compressed gasket thickness, between shoulder and lid rim
+LID_RIM_Z = SHOULDER_Z - GASKET   # top of the lid skirt (-9.05)
+LID_FLOOR_TOP = -14.6    # 0.4 below the divider tips
 LID_FLOOR_T = 3.0
 
 # drainage (top face, under the reel). The top face stays flat so the body still prints face down;
@@ -46,7 +40,7 @@ DRAIN_GROOVES, DRAIN_W, DRAIN_DEPTH_RIM, DRAIN_ANGLE0 = 6, 3.0, 1.3, 30.0
 CG_ID, CG_OD = 17.4, 22.6         # center gasket, cut from the same 1 mm silicone sheet
 CG_RECESS_R = CG_OD / 2 + 0.3     # locating recess in the lid floor
 CG_RECESS_FLOOR = LID_FLOOR_TOP - 0.5
-HUB_BOTTOM = CG_RECESS_FLOOR + GASKET   # hub land compresses the center gasket the same as the rim gasket
+HUB_BOTTOM = CG_RECESS_FLOOR + GASKET   # hub land compresses the center gasket to the same 0.75 as the rim gasket
 LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the center gasket
 
 # reel-to-body gap: the washer and the plug's foot/barbs sit down in a pocket in the top face, so
@@ -120,7 +114,7 @@ def lug_solid():
 
 def male_chamfer():
     """30 deg lead-in on the male thread at the bottom face."""
-    return revolve([(MALE_ROOT, THREAD_BOT - 0.01), (38.5, THREAD_BOT - 0.01), (38.5, THREAD_BOT + (38.5 - MALE_ROOT) * 0.577)])
+    return revolve([(MALE_ROOT, -BODY_H - 0.01), (38.5, -BODY_H - 0.01), (38.5, -BODY_H + (38.5 - MALE_ROOT) * 0.577)])
 
 def female_chamfer(z_rim):
     """30 deg lead-in on the female thread at the lid rim."""
@@ -163,11 +157,10 @@ def body_cuts():
             .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)).union(drain_cuts()))
 
 def cavity():
-    c = revolve([(HUB_R - 0.5, -TOP_PLATE), (BORE_R, -TOP_PLATE), (BORE_R, -BODY_H - 1), (HUB_R - 0.5, -BODY_H - 1)])
-    return c.union(cyl(BORE_R, THREAD_BOT - 1, -BODY_H - THREAD_BOT + 1))   # open inside the thread below the body
+    return revolve([(HUB_R - 0.5, -TOP_PLATE), (BORE_R, -TOP_PLATE), (BORE_R, -BODY_H - 1), (HUB_R - 0.5, -BODY_H - 1)])
 
 def body():
-    b = body_shell().union(twisted(MALE_ROOT, THREAD_BOT, SHOULDER_Z - THREAD_BOT + 0.05))
+    b = body_shell().union(twisted(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05))
     b = b.cut(male_chamfer()).cut(cavity())
     b = b.union(body_extras()).cut(body_cuts())
     return b
@@ -314,8 +307,8 @@ def coupon_hub():
 def coupon_thread_body():
     """Male thread ring with a short shoulder flange, like the bottom of the body."""
     c = revolve([(BORE_R, SHOULDER_Z), (BODY_R - 0.4, SHOULDER_Z), (BODY_R, SHOULDER_Z + 0.4), (BODY_R, SHOULDER_Z + 1.5), (BORE_R, SHOULDER_Z + 1.5)])
-    c = c.union(twisted(MALE_ROOT, THREAD_BOT, SHOULDER_Z - THREAD_BOT + 0.05))
-    return c.cut(male_chamfer()).cut(cyl(BORE_R, THREAD_BOT - 1, 10))
+    c = c.union(twisted(MALE_ROOT, -BODY_H, SHOULDER_Z + BODY_H + 0.05))
+    return c.cut(male_chamfer()).cut(cyl(BORE_R, -BODY_H - 1, 10))
 
 def coupon_thread_lid():
     """Female thread ring with a 1.5 floor ring, like the lid."""

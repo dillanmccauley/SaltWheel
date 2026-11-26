@@ -31,10 +31,7 @@ All files are in millimeters and already oriented for printing. Don't rotate the
 - **Down the pin:** water that follows the pin thread into the nut pocket no longer reaches the tackle
   compartment. The hub's bottom face now presses a small silicone center gasket into a recess in the lid
   floor, and a 10 mm hole in the lid floor (inside that gasket) lets that water drain straight out the back.
-  The compartment is sealed by the rim gasket and the center gasket together. Both are cut from 2 mm silicone
-  sheet and squeeze 20% (2.0 → 1.6 mm) when the lid is hand tight (`GASKET_T`, `GASKET_SQUEEZE`). To make
-  room without losing thread, the body's male thread runs 0.85 mm below its bottom face and the lid is 0.85 mm
-  deeper, so the thread engagement is the same as before.
+  The compartment is sealed by the rim gasket and the center gasket together; both compress to 0.75 mm.
 - **Test reel:** the front face is recessed like a real Yoyito: a flat floor 8 mm above the back face, tapering
   up to the front rim, with six 17 mm finger holes through the floor around the hex hole. The hex ends flush with
   the floor (8 mm long), and the plug's flange and neck sit down inside the recess. The holes are only 8 mm
@@ -75,9 +72,8 @@ All files are in millimeters and already oriented for printing. Don't rotate the
 6. Make the pin from Ø8 Delrin rod: cut it a little long, face it to 37.45 mm, chamfer both ends 0.5 mm.
    Cut 10 mm of M8 × 1.25 thread on one end with the die, keeping it square. Spin the rod in a drill and
    file a 45° V groove centered 35.35 mm from the threaded end, down to a 7.0 mm root.
-7. Lay the gasket template on 2 mm silicone sheet and cut along both edges of both rings with a sharp
-   hobby knife (rim gasket 74.2 ID × 79.0 OD, center gasket 17.4 ID × 22.6 OD). Hold the knife vertical
-   and cut in two or three light passes; 2 mm sheet pulls if you force one deep cut.
+7. Lay the gasket template on 1 mm silicone sheet and cut along both edges of both rings with a sharp
+   hobby knife (rim gasket 74.2 ID × 79.0 OD, center gasket 17.4 ID × 22.6 OD).
 8. Assemble:
    1. Press the nylon nut into the hex pocket inside the body's hub.
    2. Thread the pin in from the top until it stands 23.45 mm above the top face.
@@ -98,8 +94,7 @@ Rough totals: about 140 g of PETG and 13–15 h of printing.
 - M8 × 1.25 hand die and holder
 - M8 nylon hex nut (13 mm across flats)
 - PTFE washer, M8 × 16 × 1 mm (8.4 ID × 16 OD × 1 mm)
-- Silicone sheet, 2.0 mm, 60A–70A (70A is fine and resists extruding past the thread; firmer sheet just needs a
-  firm hand-tight turn on the lid)
+- Silicone sheet, 1.0 mm, 50A–60A
 - Drills: 2.5, 8.2 and 8.5 mm (or 21/64 and 11/32 in)
 - A fingerless glove for palming the rim
 
