@@ -93,7 +93,7 @@ Rough totals: about 140 g of PETG and 13–15 h of printing.
 - Delrin (acetal) rod, Ø8 mm, 45 mm piece
 - M8 × 1.25 hand die and holder
 - M8 nylon hex nut (13 mm across flats)
-- PTFE washer, M8 DIN 125 (8.4 ID × 16 OD × 1.6 mm), the standard M8 flat-washer size
+- PTFE washer, M8 × 16 × 1 mm (8.4 ID × 16 OD × 1 mm)
 - Silicone sheet, 1.0 mm, 50A–60A
 - Drills: 2.5, 8.2 and 8.5 mm (or 21/64 and 11/32 in)
 - A fingerless glove for palming the rim
