@@ -47,9 +47,9 @@ LID_DRAIN_R = 5.0                 # through hole in the lid floor, inside the ce
 # the reel's back face runs REEL_GAP above the body and loose line can't wedge between them.
 REEL_GAP = 0.6
 PLUG_BACK = 4.0                   # plug: tab ends to reel back face
-WASHER_T = 1.0
-POCKET_R = GUTTER_R0
-POCKET_FLOOR = REEL_GAP - PLUG_BACK - WASHER_T   # washer seat (-4.4)
+WASHER_T, WASHER_OD = 2.0, 16.0   # PTFE washer, M8 x 16 x 2 (8.4 ID)
+POCKET_R = GUTTER_R0              # set by the plug barbs (corners r 8.1); the 16 mm washer fits inside
+POCKET_FLOOR = REEL_GAP - PLUG_BACK - WASHER_T   # washer seat (-5.4)
 # water in the pocket drains down three slots past the nut corners to the hub bottom, inside the
 # center gasket, and out the lid drain hole
 NUT_DRAIN_R0, NUT_DRAIN_R1, NUT_DRAIN_W = 6.8, 8.1, 1.4
@@ -152,7 +152,7 @@ def pocket_cuts():
     return c
 
 def body_cuts():
-    nut_top = -BODY_H + NUT_DEPTH
+    nut_top = HUB_BOTTOM + NUT_DEPTH   # nut pocket starts at the hub bottom, leaving the most material under the washer pocket
     return pocket_cuts().union(hex_prism(NUT_AF, HUB_BOTTOM - 1, nut_top - HUB_BOTTOM + 1).union(cyl(PIN_HOLE_R, HUB_BOTTOM - 1, -HUB_BOTTOM + 2))
             .union(cyl(1.75, SHOULDER_Z - 1, 9, x=42.0)).union(drain_cuts()))
 
